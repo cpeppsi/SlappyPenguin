@@ -70,6 +70,21 @@ body {
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
 }
 
+#game-over-modal button {
+  display: block;
+  margin: 10px auto;
+  padding: 10px 20px;
+  font-size: 16px;
+  background-color: #00796b;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+#game-over-modal button:hover {
+  background-color: #004d40;
+}
+
 #play-again-btn {
   margin-top: 10px;
   padding: 8px 15px;
