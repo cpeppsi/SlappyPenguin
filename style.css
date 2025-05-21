@@ -23,6 +23,11 @@ body {
   display: none; /* Hide initially */
 }
 
+#instructions,
+#game-container {
+  display: none;
+}
+
 #score {
   display: flex;
   justify-content: space-between;
