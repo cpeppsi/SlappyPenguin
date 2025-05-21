@@ -7,6 +7,7 @@ const winScore = 10;
 const startBtn = document.getElementById('start-btn');
 const modal = document.getElementById('game-over-modal');
 const playAgainBtn = document.getElementById('play-again-btn');
+const characterSelectBtn = document.getElementById('character-select-btn')
 
 let speed = initialSpeed;
 let penguins = [];
@@ -19,7 +20,7 @@ const colorFilters = {
     green: 'hue-rotate(90deg) saturate(2)',
     purple: 'hue-rotate(270deg) saturate(2)',
     orange: 'hue-rotate(45deg) saturate(3)',
-    black: 'brightness(0)'
+    pink: 'hue-rotate(300deg) saturate(100%)',
 };
 
 document.getElementById('confirm-selection').addEventListener('click', () => {
@@ -38,6 +39,14 @@ startBtn.addEventListener('click', startGame);
 playAgainBtn.addEventListener('click', () => {
   resetGame();
 });
+characterSelectBtn.addEventListener('click', () => {
+  modal.style.display = 'none';
+  document.getElementById('game-container').style.display = 'none';
+  document.getElementById('character-select').style.display = 'block';
+  scores = [0, 0];
+  updateScore();
+  gameRunning = false;
+})
 
 function startGame() {
     document.getElementById('instructions').style.display = 'none';
