@@ -13,12 +13,36 @@ let penguins = [];
 let scores = [0, 0];
 let gameRunning = false;
 
+const colorFilters = {
+    red: 'hue-rotate(-10deg) saturate(600%) contrast(1)',
+    blue: 'hue-rotate(180deg) saturate(2)',
+    green: 'hue-rotate(90deg) saturate(2)',
+    purple: 'hue-rotate(270deg) saturate(2)',
+    orange: 'hue-rotate(45deg) saturate(3)',
+    black: 'brightness(0)'
+};
+
+document.getElementById('confirm-selection').addEventListener('click', () => {
+    const p1Color = document.getElementById('player1-color').value;
+    const p2Color = document.getElementById('player2-color').value;
+
+    document.getElementById('penguin1').style.filter = colorFilters[p1Color];
+    document.getElementById('penguin2').style.filter = colorFilters[p2Color];
+
+    document.getElementById('character-select').style.display = 'none';
+    document.getElementById('instructions').style.display = 'block';
+});
+
+
 startBtn.addEventListener('click', startGame);
 playAgainBtn.addEventListener('click', () => {
   resetGame();
 });
 
 function startGame() {
+    document.getElementById('instructions').style.display = 'none';
+    document.getElementById('game-container').style.display = 'block';
+
   if (gameRunning) return;
   gameRunning = true;
   modal.style.display = 'none';

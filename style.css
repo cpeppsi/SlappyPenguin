@@ -78,3 +78,12 @@ body {
 #play-again-btn:hover {
   background-color: #004d40;
 }
+
+#character-select {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.player-select {
+  margin: 10px 0;
+}
