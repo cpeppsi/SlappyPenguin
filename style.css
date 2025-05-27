@@ -11,6 +11,7 @@ body {
 
 #instructions {
   text-align: center;
+  display: none;
 }
 
 #game-container {
@@ -20,11 +21,6 @@ body {
   background: #e0f7fa;
   border: 2px solid #006064;
   overflow: hidden;
-  display: none; /* Hide initially */
-}
-
-#instructions,
-#game-container {
   display: none;
 }
 
@@ -41,7 +37,7 @@ body {
   background: url('penguin.png') no-repeat center center / contain;
 }
 
-#start-btn {
+#start-btn, #confirm-selection {
   margin-top: 20px;
   padding: 10px 20px;
   font-size: 16px;
@@ -49,15 +45,21 @@ body {
   color: white;
   border: none;
   cursor: pointer;
+  border-radius: 5px;
 }
 
-#start-btn:hover {
+#start-btn:hover, #confirm-selection:hover:not(:disabled) {
   background-color: #004d40;
+}
+
+#confirm-selection:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
 }
 
 /* Modal styles */
 #game-over-modal {
-  display: none; /* Hidden initially */
+  display: none;
   position: fixed;
   top: 50%;
   left: 50%;
@@ -68,6 +70,7 @@ body {
   z-index: 1000;
   text-align: center;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  border-radius: 10px;
 }
 
 #game-over-modal button {
@@ -79,6 +82,7 @@ body {
   color: white;
   border: none;
   cursor: pointer;
+  border-radius: 5px;
 }
 
 #game-over-modal button:hover {
@@ -100,13 +104,12 @@ body {
 }
 
 #character-select {
-  display: block !important;
   text-align: center;
   margin-bottom: 20px;
 }
 
 .player-select {
-  margin: 10px 0;
+  margin: 20px 0;
 }
 
 .penguin-options {
@@ -125,6 +128,7 @@ body {
   border-radius: 5px;
   cursor: pointer;
   transition: transform 0.2s, border 0.2s;
+  position: relative;
 }
 
 .penguin-option:hover {

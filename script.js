@@ -7,7 +7,7 @@ const winScore = 10;
 const startBtn = document.getElementById('start-btn');
 const modal = document.getElementById('game-over-modal');
 const playAgainBtn = document.getElementById('play-again-btn');
-const characterSelectBtn = document.getElementById('character-select-btn')
+const characterSelectBtn = document.getElementById('character-select-btn');
 
 let speed = initialSpeed;
 let penguins = [];
@@ -18,12 +18,13 @@ const colorFilters = {
     red: 'hue-rotate(-10deg) saturate(600%) contrast(1)',
     blue: 'hue-rotate(180deg) saturate(2)',
     green: 'hue-rotate(90deg) saturate(2)',
+    yellow: 'hue-rotate(30deg) saturate(3) brightness(1.2)',
     purple: 'hue-rotate(270deg) saturate(2)',
-    orange: 'hue-rotate(45deg) saturate(3)',
+    orange: 'hue-rotate(0deg) saturate(100%)',
     pink: 'hue-rotate(300deg) saturate(100%)',
 };
 
-const colors = ['red', 'blue', 'green', 'purple', 'orange', 'pink'];
+const colors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'pink'];
 let playerSelections = { player1: null, player2: null };
 
 function createPenguinOptions(playerId, containerId) {
@@ -45,7 +46,7 @@ function createPenguinOptions(playerId, containerId) {
 }
 
 function handleSelection(player, color) {
-  console.log(`Player ${player} selected color: ${color}`)
+  console.log(`Player ${player} selected color: ${color}`);
   playerSelections[player] = color;
   updateSelectionStyles();
 
@@ -53,7 +54,7 @@ function handleSelection(player, color) {
   const different = playerSelections.player1 !== playerSelections.player2;
   document.getElementById('confirm-selection').disabled = !(bothSelected && different);
 
-  console.log('Confirm button disabled:', document.getElementById('confirm-selection').disabled)
+  console.log('Confirm button disabled:', document.getElementById('confirm-selection').disabled);
 }
 
 function updateSelectionStyles() {
@@ -89,8 +90,6 @@ document.getElementById('confirm-selection').addEventListener('click', () => {
   document.getElementById('instructions').style.display = 'block';
 });
 
-
-
 startBtn.addEventListener('click', startGame);
 playAgainBtn.addEventListener('click', () => {
   resetGame();
@@ -106,7 +105,7 @@ characterSelectBtn.addEventListener('click', () => {
   scores = [0, 0];
   updateScore();
   gameRunning = false;
-})
+});
 
 function startGame() {
     document.getElementById('instructions').style.display = 'none';
@@ -135,6 +134,8 @@ function handleKeyUp(e) {
 }
 
 function handleKey(event, isKeyDown) {
+  if (!penguins.length) return;
+  
   switch (event.code) {
     case 'KeyW': penguins[0].up = isKeyDown; break;
     case 'KeyS': penguins[0].down = isKeyDown; break;
@@ -246,6 +247,8 @@ function resetGame() {
 }
 
 function handleCollision() {
+  if (penguins.length < 2) return;
+  
   const p1 = penguins[0];
   const p2 = penguins[1];
 
@@ -266,23 +269,15 @@ function handleCollision() {
       speed += speedIncrement; // Increase speed after each collision
     }
   }
-  
-  // window.onload = () => {
-  //   createPenguinOptions('player1', 'player1-options')
-  //   createPenguinOptions('player2', 'player2-options')
-  //   document.getElementById('character-select').style.display = 'block';
-
-  //   console.log('Player 1 options:', document.getElementById('player1-options').children.length);
-  //   console.log('Player 2 options:', document.getElementById('player2-options').children.length);
-  // }
-
-  window.addEventListener('load', () => {
-    console.log('Page loaded - initializing penguin options');
-    createPenguinOptions('player1', 'player1-options');
-    createPenguinOptions('player2', 'player2-options');
-    document.getElementById('character-select').style.display = 'block';
-
-    console.log('Player 1 options:', document.getElementById('player1-options').children.length);
-    console.log('Player 2 options:', document.getElementById('player2-options').children.length);
-  });
 }
+
+// Initialize the game when page loads
+window.addEventListener('load', () => {
+  console.log('Page loaded - initializing penguin options');
+  createPenguinOptions('player1', 'player1-options');
+  createPenguinOptions('player2', 'player2-options');
+  document.getElementById('character-select').style.display = 'block';
+
+  console.log('Player 1 options:', document.getElementById('player1-options').children.length);
+  console.log('Player 2 options:', document.getElementById('player2-options').children.length);
+});
