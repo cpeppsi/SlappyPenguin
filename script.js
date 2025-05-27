@@ -15,11 +15,11 @@ let scores = [0, 0];
 let gameRunning = false;
 
 const colorFilters = {
-    red: 'hue-rotate(-10deg) saturate(600%) contrast(1)',
+    red: 'hue-rotate(-30deg) saturate(700%) contrast(1)',
     blue: 'hue-rotate(180deg) saturate(2)',
     green: 'hue-rotate(90deg) saturate(2)',
     yellow: 'hue-rotate(30deg) saturate(3) brightness(1.2)',
-    purple: 'hue-rotate(270deg) saturate(2)',
+    purple: 'hue-rotate(270deg) saturate(700%)',
     orange: 'hue-rotate(0deg) saturate(100%)',
     pink: 'hue-rotate(300deg) saturate(100%)',
 };
