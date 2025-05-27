@@ -100,10 +100,44 @@ body {
 }
 
 #character-select {
+  display: block !important;
   text-align: center;
   margin-bottom: 20px;
 }
 
 .player-select {
   margin: 10px 0;
+}
+
+.penguin-options {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
+
+.penguin-option {
+  width: 50px;
+  height: 50px;
+  background: url('penguin.png') no-repeat center center / contain;
+  border: 2px solid transparent;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: transform 0.2s, border 0.2s;
+}
+
+.penguin-option:hover {
+  transform: scale(1.1);
+  border-color: #888;
+}
+
+.penguin-option.selected {
+  border: 2px solid #00796b;
+  box-shadow: 0 0 5px #00796b;
+}
+
+.penguin-option.disabled {
+  opacity: 0.4;
+  pointer-events: none;
 }

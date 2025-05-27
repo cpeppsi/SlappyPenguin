@@ -23,16 +23,72 @@ const colorFilters = {
     pink: 'hue-rotate(300deg) saturate(100%)',
 };
 
+const colors = ['red', 'blue', 'green', 'purple', 'orange', 'pink'];
+let playerSelections = { player1: null, player2: null };
+
+function createPenguinOptions(playerId, containerId) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+
+  colors.forEach(color => {
+    const div = document.createElement('div');
+    div.classList.add('penguin-option');
+    div.style.filter = colorFilters[color];
+    div.dataset.color = color;
+
+    div.addEventListener('click', () => {
+      handleSelection(playerId, color);
+    });
+
+    container.appendChild(div);
+  });
+}
+
+function handleSelection(player, color) {
+  console.log(`Player ${player} selected color: ${color}`)
+  playerSelections[player] = color;
+  updateSelectionStyles();
+
+  const bothSelected = playerSelections.player1 && playerSelections.player2;
+  const different = playerSelections.player1 !== playerSelections.player2;
+  document.getElementById('confirm-selection').disabled = !(bothSelected && different);
+
+  console.log('Confirm button disabled:', document.getElementById('confirm-selection').disabled)
+}
+
+function updateSelectionStyles() {
+  colors.forEach(color => {
+    // Player 1 visuals
+    const p1Els = document.querySelectorAll('#player1-options .penguin-option');
+    p1Els.forEach(el => {
+      el.classList.remove('selected', 'disabled');
+      if (el.dataset.color === playerSelections.player1) el.classList.add('selected');
+      if (el.dataset.color === playerSelections.player2) el.classList.add('disabled');
+    });
+
+    // Player 2 visuals
+    const p2Els = document.querySelectorAll('#player2-options .penguin-option');
+    p2Els.forEach(el => {
+      el.classList.remove('selected', 'disabled');
+      if (el.dataset.color === playerSelections.player2) el.classList.add('selected');
+      if (el.dataset.color === playerSelections.player1) el.classList.add('disabled');
+    });
+  });
+}
+
 document.getElementById('confirm-selection').addEventListener('click', () => {
-    const p1Color = document.getElementById('player1-color').value;
-    const p2Color = document.getElementById('player2-color').value;
+  const p1Color = playerSelections.player1;
+  const p2Color = playerSelections.player2;
 
-    document.getElementById('penguin1').style.filter = colorFilters[p1Color];
-    document.getElementById('penguin2').style.filter = colorFilters[p2Color];
+  console.log('Confirm clicked with:', p1Color, p2Color);
 
-    document.getElementById('character-select').style.display = 'none';
-    document.getElementById('instructions').style.display = 'block';
+  document.getElementById('penguin1').style.filter = colorFilters[p1Color];
+  document.getElementById('penguin2').style.filter = colorFilters[p2Color];
+
+  document.getElementById('character-select').style.display = 'none';
+  document.getElementById('instructions').style.display = 'block';
 });
+
 
 
 startBtn.addEventListener('click', startGame);
@@ -40,6 +96,10 @@ playAgainBtn.addEventListener('click', () => {
   resetGame();
 });
 characterSelectBtn.addEventListener('click', () => {
+  playerSelections = { player1: null, player2: null };
+  document.getElementById('confirm-selection').disabled = true;
+  createPenguinOptions('player1', 'player1-options');
+  createPenguinOptions('player2', 'player2-options');
   modal.style.display = 'none';
   document.getElementById('game-container').style.display = 'none';
   document.getElementById('character-select').style.display = 'block';
@@ -206,4 +266,23 @@ function handleCollision() {
       speed += speedIncrement; // Increase speed after each collision
     }
   }
+  
+  // window.onload = () => {
+  //   createPenguinOptions('player1', 'player1-options')
+  //   createPenguinOptions('player2', 'player2-options')
+  //   document.getElementById('character-select').style.display = 'block';
+
+  //   console.log('Player 1 options:', document.getElementById('player1-options').children.length);
+  //   console.log('Player 2 options:', document.getElementById('player2-options').children.length);
+  // }
+
+  window.addEventListener('load', () => {
+    console.log('Page loaded - initializing penguin options');
+    createPenguinOptions('player1', 'player1-options');
+    createPenguinOptions('player2', 'player2-options');
+    document.getElementById('character-select').style.display = 'block';
+
+    console.log('Player 1 options:', document.getElementById('player1-options').children.length);
+    console.log('Player 2 options:', document.getElementById('player2-options').children.length);
+  });
 }
