@@ -6,8 +6,6 @@ A fun and competitive 2-player browser game where penguins battle it out on an i
 
 **[Play SlappyPenguin Now!](https://cpeppsi.github.io/slappypenguin)**
 
-*Replace `yourusername` with your actual GitHub username*
-
 ## 🎯 How to Play
 
 ### Objective
@@ -35,13 +33,13 @@ Knock your opponent's penguin off the iceberg by moving strategically and using 
 ## 🚀 Quick Start
 
 ### Option 1: Play Online (Recommended)
-Simply visit the [live demo link](https://yourusername.github.io/slappypenguin) and start playing immediately!
+Simply visit the [live demo link](https://cpeppsi.github.io/slappypenguin) and start playing immediately!
 
 ### Option 2: Download & Play Locally
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/slappypenguin.git
+   git clone https://github.com/cpeppsi/slappypenguin.git
    cd slappypenguin
    ```
 
