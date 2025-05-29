@@ -4,7 +4,7 @@ A fun and competitive 2-player browser game where penguins battle it out on an i
 
 ## 🎮 Live Demo (Development Version)
 
-**[Play SlappyPenguin Now!](https://htmlpreview.github.io/?https://github.com/cpeppsi/slappypenguin/blob/README%2FTest/index.html)**
+**[Play SlappyPenguin Now!](https://cpeppsi.github.io/SlappyPenguin/)**
 
 ## 🎯 How to Play
 
