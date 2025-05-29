@@ -2,9 +2,9 @@
 
 A fun and competitive 2-player browser game where penguins battle it out on an iceberg! Knock your opponent off the ice using strategic movement and well-timed slaps. First penguin to win 10 rounds claims victory!
 
-## 🎮 Live Demo
+## 🎮 Live Demo (Development Version)
 
-**[Play SlappyPenguin Now!](https://cpeppsi.github.io/slappypenguin)**
+**[Play SlappyPenguin Now!](https://htmlpreview.github.io/?https://github.com/cpeppsi/slappypenguin/blob/README%2FTest/index.html)**
 
 ## 🎯 How to Play
 
