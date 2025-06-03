@@ -16,6 +16,10 @@ let speed = initialSpeed;
 let penguins = [];
 let scores = [0, 0];
 let gameRunning = false;
+let icebergImage = null;
+let icebergData = null;
+let canvas = null;
+let ctx = null;
 
 // Penguin SVG template
 const penguinSVG = `
@@ -89,6 +93,57 @@ const colorFilters = {
 const colors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'pink'];
 let playerSelections = { player1: null, player2: null };
 
+function loadIcebergImage() {
+  return new Promise((resolve, reject) => {
+    icebergImage = new Image();
+    icebergImage.crossOrigin = 'anonymous';
+    icebergImage.onload = function() {
+      canvas = document.getElementById('game-canvas');
+      ctx = canvas.getContext('2d');
+      
+      // Draw the iceberg image to fill the canvas
+      ctx.drawImage(icebergImage, 0, 0, canvas.width, canvas.height);
+      
+      // Get pixel data for collision detection
+      icebergData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      
+      resolve();
+    };
+    icebergImage.onerror = reject;
+    icebergImage.src = 'iceberg1.svg';
+  });
+}
+
+function isOnIceberg(x, y, width, height) {
+  if (!icebergData) return false;
+  
+  // Check multiple points around the penguin's base
+  const checkPoints = [
+    { x: x + width/2, y: y + height }, // Bottom center
+    { x: x + 5, y: y + height }, // Bottom left
+    { x: x + width - 5, y: y + height }, // Bottom right
+  ];
+  
+  for (let point of checkPoints) {
+    const px = Math.floor(point.x);
+    const py = Math.floor(point.y);
+    
+    if (px < 0 || px >= canvas.width || py < 0 || py >= canvas.height) {
+      return false; // Outside canvas bounds
+    }
+    
+    const index = (py * canvas.width + px) * 4;
+    const alpha = icebergData.data[index + 3];
+    
+    // If any point has solid pixels (alpha > 0), penguin is on iceberg
+    if (alpha > 50) { // Threshold for solid areas
+      return true;
+    }
+  }
+  
+  return false;
+}
+
 function createPenguinOptions(playerId, containerId) {
   const container = document.getElementById(containerId);
   container.innerHTML = '';
@@ -135,9 +190,18 @@ function updateSelectionStyles() {
   });
 }
 
-document.getElementById('confirm-selection').addEventListener('click', () => {
+document.getElementById('confirm-selection').addEventListener('click', async () => {
   const p1Color = playerSelections.player1;
   const p2Color = playerSelections.player2;
+
+  // Load iceberg image first
+  try {
+    await loadIcebergImage();
+  } catch (error) {
+    console.error('Failed to load iceberg image:', error);
+    alert('Failed to load iceberg image. Please make sure iceberg1.svg is available.');
+    return;
+  }
 
   // Set penguin sprites and colors
   document.getElementById('penguin1').innerHTML = penguinSVG;
@@ -167,8 +231,8 @@ characterSelectBtn.addEventListener('click', () => {
 });
 
 function startGame() {
-    document.getElementById('instructions').style.display = 'none';
-    document.getElementById('game-container').style.display = 'block';
+    // document.getElementById('instructions').style.display = 'none';
+    // document.getElementById('game-container').style.display = 'block';
 
   if (gameRunning) return;
   gameRunning = true;
@@ -276,20 +340,27 @@ function updateGame() {
     penguin.vx *= friction;
     penguin.vy *= friction;
 
-    // Update position
-    penguin.x += penguin.vx;
-    penguin.y += penguin.vy;
+    // Calculate new position
+    const newX = penguin.x + penguin.vx;
+    const newY = penguin.y + penguin.vy;
 
-    // Check boundaries
-    if (penguin.x < 0 || penguin.x > rect.width - penguin.element.offsetWidth ||
-        penguin.y < 0 || penguin.y > rect.height - penguin.element.offsetHeight) {
+    // Check if new position would be on the iceberg
+    const penguinWidth = penguin.element.offsetWidth;
+    const penguinHeight = penguin.element.offsetHeight;
+
+    if (isOnIceberg(newX, newY, penguinWidth, penguinHeight)) {
+      // Update position if still on iceberg
+      penguin.x = newX;
+      penguin.y = newY;
+      
+      // Update visual position
+      penguin.element.style.left = `${penguin.x}px`;
+      penguin.element.style.top = `${penguin.y}px`;
+    } else {
+      // Penguin fell off the iceberg
       handlePenguinFall(penguin);
       return;
     }
-
-    // Update visual position
-    penguin.element.style.left = `${penguin.x}px`;
-    penguin.element.style.top = `${penguin.y}px`;
   });
 
   handleCollision();
@@ -314,11 +385,40 @@ function handlePenguinFall(penguin) {
 }
 
 function resetPositions() {
+  // Find safe starting positions on the iceberg
+  let p1X = 150, p1Y = 200; // Default positions
+  let p2X = 350, p2Y = 200;
+  
+  // Try to find better positions on the iceberg if possible
+  if (icebergData) {
+    for (let y = 100; y < 300; y += 10) {
+      for (let x = 50; x < 250; x += 10) {
+        if (isOnIceberg(x, y, 50, 50)) {
+          p1X = x;
+          p1Y = y;
+          break;
+        }
+      }
+      if (p1X !== 150) break;
+    }
+    
+    for (let y = 100; y < 300; y += 10) {
+      for (let x = 350; x < 550; x += 10) {
+        if (isOnIceberg(x, y, 50, 50)) {
+          p2X = x;
+          p2Y = y;
+          break;
+        }
+      }
+      if (p2X !== 350) break;
+    }
+  }
+
   penguins = [
     {
       element: document.getElementById('penguin1'),
-      x: 100,
-      y: 150,
+      x: p1X,
+      y: p1Y,
       vx: 0,
       vy: 0,
       up: false,
@@ -329,8 +429,8 @@ function resetPositions() {
     },
     {
       element: document.getElementById('penguin2'),
-      x: 400,
-      y: 150,
+      x: p2X,
+      y: p2Y,
       vx: 0,
       vy: 0,
       up: false,
