@@ -100,9 +100,26 @@ function loadIcebergImage() {
     icebergImage.onload = function() {
       canvas = document.getElementById('game-canvas');
       ctx = canvas.getContext('2d');
+
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
       
-      // Draw the iceberg image to fill the canvas
-      ctx.drawImage(icebergImage, 0, 0, canvas.width, canvas.height);
+      // Scale factor - increase this to make iceberg bigger
+      const scaleFactor = 3;
+      
+      // Calculate scaled dimensions
+      const scaledWidth = canvas.width * scaleFactor;
+      const scaledHeight = canvas.height * scaleFactor;
+      
+      // Calculate offset to center the scaled iceberg
+      const offsetX = (canvas.width - scaledWidth) / 2;
+      const offsetY = (canvas.height - scaledHeight) / 2;
+      
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw the scaled iceberg image
+      ctx.drawImage(icebergImage, offsetX, offsetY, scaledWidth, scaledHeight);
       
       // Get pixel data for collision detection
       icebergData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -112,6 +129,32 @@ function loadIcebergImage() {
     icebergImage.onerror = reject;
     icebergImage.src = 'iceberg1.svg';
   });
+}
+
+function resizeCanvas() {
+  if (!canvas || !ctx || !icebergImage) return;
+  
+  // Set canvas size to window size
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  
+  // Redraw the iceberg at new size
+  const scaleFactor = 1.75;
+  const scaledWidth = canvas.width * scaleFactor;
+  const scaledHeight = canvas.height * scaleFactor;
+  const offsetX = (canvas.width - scaledWidth) / 2;
+  const offsetY = (canvas.height - scaledHeight) / 2;
+  
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(icebergImage, offsetX, offsetY, scaledWidth, scaledHeight);
+  
+  // Update pixel data for collision detection
+  icebergData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  
+  // Reposition penguins if they exist
+  if (penguins.length > 0) {
+    resetPositions();
+  }
 }
 
 function isOnIceberg(x, y, width, height) {
@@ -495,3 +538,5 @@ window.addEventListener('load', () => {
   createPenguinOptions('player2', 'player2-options');
   document.getElementById('character-select').style.display = 'block';
 });
+
+window.addEventListener('resize', resizeCanvas)
