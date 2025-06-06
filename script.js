@@ -7,6 +7,10 @@ const slapForce = 8; // Increased force for slapping
 const slapRange = 80; // Range within which slap is effective
 const winScore = 10;
 
+// FIXED: Standard iceberg dimensions for consistent multiplayer gameplay
+const STANDARD_ICEBERG_WIDTH = 1920;
+const STANDARD_ICEBERG_HEIGHT = 1080;
+
 const startBtn = document.getElementById('start-btn');
 const modal = document.getElementById('game-over-modal');
 const playAgainBtn = document.getElementById('play-again-btn');
@@ -104,22 +108,28 @@ function loadIcebergImage() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
       
-      // Scale factor - increase this to make iceberg bigger
-      const scaleFactor = 3;
+      // FIXED: Use standard dimensions for consistent multiplayer gameplay
+      const scorebarHeight = 60;
+      const icebergWidth = STANDARD_ICEBERG_WIDTH;
+      const icebergHeight = STANDARD_ICEBERG_HEIGHT;
       
-      // Calculate scaled dimensions
-      const scaledWidth = canvas.width * scaleFactor;
-      const scaledHeight = canvas.height * scaleFactor;
+      // Center the iceberg horizontally and vertically (accounting for scoreboard)
+      const offsetX = (canvas.width - icebergWidth) / 2;
+      const offsetY = scorebarHeight + (canvas.height - scorebarHeight - icebergHeight) / 2;
       
-      // Calculate offset to center the scaled iceberg
-      const offsetX = (canvas.width - scaledWidth) / 2;
-      const offsetY = (canvas.height - scaledHeight) / 2;
+      // Store iceberg bounds for penguin positioning
+      window.icebergBounds = {
+        x: offsetX,
+        y: offsetY,
+        width: icebergWidth,
+        height: icebergHeight
+      };
       
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
-      // Draw the scaled iceberg image
-      ctx.drawImage(icebergImage, offsetX, offsetY, scaledWidth, scaledHeight);
+      // Draw the iceberg at standard size
+      ctx.drawImage(icebergImage, offsetX, offsetY, icebergWidth, icebergHeight);
       
       // Get pixel data for collision detection
       icebergData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -138,15 +148,25 @@ function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
   
-  // Redraw the iceberg at new size
-  const scaleFactor = 1.75;
-  const scaledWidth = canvas.width * scaleFactor;
-  const scaledHeight = canvas.height * scaleFactor;
-  const offsetX = (canvas.width - scaledWidth) / 2;
-  const offsetY = (canvas.height - scaledHeight) / 2;
+  // FIXED: Recalculate positioning with standard dimensions
+  const scorebarHeight = 60;
+  const icebergWidth = STANDARD_ICEBERG_WIDTH;
+  const icebergHeight = STANDARD_ICEBERG_HEIGHT;
+  
+  // Center the iceberg
+  const offsetX = (canvas.width - icebergWidth) / 2;
+  const offsetY = scorebarHeight + (canvas.height - scorebarHeight - icebergHeight) / 2;
+  
+  // Update iceberg bounds
+  window.icebergBounds = {
+    x: offsetX,
+    y: offsetY,
+    width: icebergWidth,
+    height: icebergHeight
+  };
   
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(icebergImage, offsetX, offsetY, scaledWidth, scaledHeight);
+  ctx.drawImage(icebergImage, offsetX, offsetY, icebergWidth, icebergHeight);
   
   // Update pixel data for collision detection
   icebergData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -427,41 +447,47 @@ function handlePenguinFall(penguin) {
   }
 }
 
-function resetPositions() {
-  // Find safe starting positions on the iceberg
-  let p1X = 150, p1Y = 200; // Default positions
-  let p2X = 350, p2Y = 200;
+function findRandomIcebergPosition() {
+  if (!icebergData || !window.icebergBounds) return { x: 100, y: 100 };
   
-  // Try to find better positions on the iceberg if possible
-  if (icebergData) {
-    for (let y = 100; y < 300; y += 10) {
-      for (let x = 50; x < 250; x += 10) {
-        if (isOnIceberg(x, y, 50, 50)) {
-          p1X = x;
-          p1Y = y;
-          break;
-        }
-      }
-      if (p1X !== 150) break;
-    }
+  const bounds = window.icebergBounds;
+  const maxAttempts = 100;
+  
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    // Generate random position within iceberg bounds
+    const x = bounds.x + Math.random() * (bounds.width - 50);
+    const y = bounds.y + Math.random() * (bounds.height - 50);
     
-    for (let y = 100; y < 300; y += 10) {
-      for (let x = 350; x < 550; x += 10) {
-        if (isOnIceberg(x, y, 50, 50)) {
-          p2X = x;
-          p2Y = y;
-          break;
-        }
-      }
-      if (p2X !== 350) break;
+    // Check if this position is on solid iceberg
+    if (isOnIceberg(x, y, 50, 50)) {
+      return { x, y };
     }
+  }
+  
+  // Fallback to center of iceberg bounds if no valid position found
+  return { 
+    x: bounds.x + bounds.width / 2 - 25, 
+    y: bounds.y + bounds.height / 2 - 25 
+  };
+}
+
+function resetPositions() {
+  // Find random safe starting positions on the iceberg
+  const pos1 = findRandomIcebergPosition();
+  const pos2 = findRandomIcebergPosition();
+  
+  // Ensure positions are different enough
+  while (Math.abs(pos1.x - pos2.x) < 100 && Math.abs(pos1.y - pos2.y) < 100) {
+    const newPos = findRandomIcebergPosition();
+    pos2.x = newPos.x;
+    pos2.y = newPos.y;
   }
 
   penguins = [
     {
       element: document.getElementById('penguin1'),
-      x: p1X,
-      y: p1Y,
+      x: pos1.x,
+      y: pos1.y,
       vx: 0,
       vy: 0,
       up: false,
@@ -472,8 +498,8 @@ function resetPositions() {
     },
     {
       element: document.getElementById('penguin2'),
-      x: p2X,
-      y: p2Y,
+      x: pos2.x,
+      y: pos2.y,
       vx: 0,
       vy: 0,
       up: false,
