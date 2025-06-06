@@ -57,7 +57,7 @@ body {
 }
 
 #score::before {
-  content: "🐧 PENGUIN SLAP BATTLE 🐧";
+  content: " BATTLE ";
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
