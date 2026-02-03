@@ -25,6 +25,30 @@
     <button id="confirm-selection" disabled>Continue</button>
   </div>
 
+  <!-- Add this new section -->
+<div id="game-mode-select">
+  <h2>Choose Game Mode</h2>
+  <button id="local-mode-btn" class="mode-btn">Local 2 Player</button>
+  <button id="online-mode-btn" class="mode-btn">Online Multiplayer</button>
+</div>
+
+<div id="online-setup">
+  <h2>Online Multiplayer Setup</h2>
+  <div class="room-setup">
+    <input type="text" id="room-id-input" placeholder="Enter Room ID (e.g., room123)" maxlength="20">
+    <button id="join-room-btn">Join Room</button>
+  </div>
+  <div id="room-status"></div>
+  <div id="waiting-area" style="display: none;">
+    <h3>Waiting for opponent...</h3>
+    <p>Room ID: <span id="current-room-id"></span></p>
+    <p>Share this room ID with your friend!</p>
+    <div id="online-players"></div>
+    <button id="ready-btn" disabled>Ready to Play</button>
+  </div>
+  <button id="back-to-mode-btn">Back to Mode Selection</button>
+</div>
+
   <div id="instructions">
     <h1>Penguin Slap Game</h1>
     <p>Control your penguin to slap the opponent off the iceberg. The last penguin standing wins!</p>
@@ -54,6 +78,9 @@
     <button id="character-select-btn">Change Penguin</button>
   </div>
 
-  <script src="script.js"></script>
+  <script src="/script.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+
+
 </body>
 </html>

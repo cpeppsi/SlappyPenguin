@@ -24,6 +24,12 @@ let icebergImage = null;
 let icebergData = null;
 let canvas = null;
 let ctx = null;
+// Online multiplayer variables
+let socket = null;
+let isOnlineMode = false;
+let currentRoomId = null;
+let myPlayerIndex = null;
+let isHost = false;
 
 // Penguin SVG template
 const penguinSVG = `
@@ -96,6 +102,73 @@ const colorFilters = {
 
 const colors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'pink'];
 let playerSelections = { player1: null, player2: null };
+
+// Online multiplayer functions
+function initializeOnlineMode() {
+  // Connect to server
+  socket = io();
+  
+  // Add connection status indicator
+  const statusDiv = document.createElement('div');
+  statusDiv.id = 'connection-status';
+  statusDiv.textContent = 'Connecting...';
+  document.body.appendChild(statusDiv);
+  
+  // Socket event listeners
+  socket.on('connect', () => {
+    document.getElementById('connection-status').textContent = 'Connected';
+    document.getElementById('connection-status').className = 'connected';
+  });
+  
+  socket.on('disconnect', () => {
+    document.getElementById('connection-status').textContent = 'Disconnected';
+    document.getElementById('connection-status').className = 'disconnected';
+  });
+  
+  socket.on('room-state', (data) => {
+    updateRoomState(data);
+  });
+  
+  socket.on('player-ready-update', (data) => {
+    updatePlayerReadyState(data);
+  });
+  
+  socket.on('game-start', () => {
+    startOnlineGame();
+  });
+  
+  socket.on('opponent-input', (data) => {
+    handleOpponentInput(data);
+  });
+  
+  socket.on('opponent-position', (data) => {
+    updateOpponentPosition(data);
+  });
+  
+  socket.on('score-sync', (data) => {
+    scores = data.scores;
+    updateScore();
+  });
+  
+  socket.on('game-over-sync', (data) => {
+    gameRunning = false;
+    modal.querySelector('p').textContent = data.message;
+    modal.style.display = 'block';
+  });
+  
+  socket.on('game-reset', () => {
+    resetGame();
+  });
+  
+  socket.on('player-left', (data) => {
+    alert('Your opponent left the game');
+    backToModeSelection();
+  });
+  
+  socket.on('join-error', (data) => {
+    showRoomStatus(data.message, 'error');
+  });
+}
 
 function loadIcebergImage() {
   return new Promise((resolve, reject) => {
@@ -322,29 +395,92 @@ function handleKeyUp(e) {
 function handleKey(event, isKeyDown) {
   if (!penguins.length) return;
   
-  // Movement keys
-  switch (event.code) {
-    case 'KeyW': penguins[0].up = isKeyDown; break;
-    case 'KeyS': penguins[0].down = isKeyDown; break;
-    case 'KeyA': penguins[0].left = isKeyDown; break;
-    case 'KeyD': penguins[0].right = isKeyDown; break;
-    case 'ArrowUp': penguins[1].up = isKeyDown; break;
-    case 'ArrowDown': penguins[1].down = isKeyDown; break;
-    case 'ArrowLeft': penguins[1].left = isKeyDown; break;
-    case 'ArrowRight': penguins[1].right = isKeyDown; break;
+  // Determine which penguin to control based on mode
+  let controlledPenguinIndex = 0;
+  if (isOnlineMode) {
+    controlledPenguinIndex = myPlayerIndex;
+  }
+  
+  // Movement keys for local mode (both players) or online mode (my player only)
+  if (!isOnlineMode) {
+    // Local mode - control both penguins
+    switch (event.code) {
+      case 'KeyW': penguins[0].up = isKeyDown; break;
+      case 'KeyS': penguins[0].down = isKeyDown; break;
+      case 'KeyA': penguins[0].left = isKeyDown; break;
+      case 'KeyD': penguins[0].right = isKeyDown; break;
+      case 'ArrowUp': penguins[1].up = isKeyDown; break;
+      case 'ArrowDown': penguins[1].down = isKeyDown; break;
+      case 'ArrowLeft': penguins[1].left = isKeyDown; break;
+      case 'ArrowRight': penguins[1].right = isKeyDown; break;
+    }
+  } else {
+    // Online mode - control only my penguin
+    const myPenguin = penguins[controlledPenguinIndex];
+    if (!myPenguin) return;
+    
+    switch (event.code) {
+      case 'KeyW':
+      case 'ArrowUp': 
+        myPenguin.up = isKeyDown; 
+        break;
+      case 'KeyS':
+      case 'ArrowDown': 
+        myPenguin.down = isKeyDown; 
+        break;
+      case 'KeyA':
+      case 'ArrowLeft': 
+        myPenguin.left = isKeyDown; 
+        break;
+      case 'KeyD':
+      case 'ArrowRight': 
+        myPenguin.right = isKeyDown; 
+        break;
+    }
+    
+    // Send input to server
+    if (socket) {
+      socket.emit('game-input', {
+        type: 'movement',
+        keys: {
+          up: myPenguin.up,
+          down: myPenguin.down,
+          left: myPenguin.left,
+          right: myPenguin.right
+        }
+      });
+    }
   }
 
   // Slap keys (only on key down)
   if (isKeyDown) {
-    switch (event.code) {
-      case 'Space':
-        event.preventDefault();
-        performSlap(0); // Player 1 slap
-        break;
-      case 'Enter':
-        event.preventDefault();
-        performSlap(1); // Player 2 slap
-        break;
+    if (!isOnlineMode) {
+      // Local mode
+      switch (event.code) {
+        case 'Space':
+          event.preventDefault();
+          performSlap(0);
+          break;
+        case 'Enter':
+          event.preventDefault();
+          performSlap(1);
+          break;
+      }
+    } else {
+      // Online mode
+      switch (event.code) {
+        case 'Space':
+        case 'Enter':
+          event.preventDefault();
+          performSlap(controlledPenguinIndex);
+          if (socket) {
+            socket.emit('game-input', {
+              type: 'slap',
+              playerIndex: controlledPenguinIndex
+            });
+          }
+          break;
+      }
     }
   }
 }
@@ -558,11 +694,108 @@ function handleCollision() {
   }
 }
 
+// New event listeners for mode selection
+document.getElementById('local-mode-btn').addEventListener('click', () => {
+  isOnlineMode = false;
+  document.getElementById('game-mode-select').style.display = 'none';
+  document.getElementById('character-select').style.display = 'block';
+});
+
+document.getElementById('online-mode-btn').addEventListener('click', () => {
+  isOnlineMode = true;
+  initializeOnlineMode();
+  document.getElementById('game-mode-select').style.display = 'none';
+  document.getElementById('online-setup').style.display = 'block';
+});
+
+// Add remaining online multiplayer functions...
+function joinRoom() {
+  const roomId = document.getElementById('room-id-input').value.trim();
+  if (!roomId) {
+    showRoomStatus('Please enter a room ID', 'error');
+    return;
+  }
+  
+  if (!playerSelections.player1) {
+    showRoomStatus('Please select a penguin color first', 'error');
+    return;
+  }
+  
+  currentRoomId = roomId;
+  socket.emit('join-room', {
+    roomId: roomId,
+    playerData: { color: playerSelections.player1 }
+  });
+  
+  document.getElementById('current-room-id').textContent = roomId;
+  document.getElementById('waiting-area').style.display = 'block';
+}
+
+function updateRoomState(data) {
+  myPlayerIndex = data.players.find(p => p.id === socket.id)?.playerIndex;
+  isHost = myPlayerIndex === 0;
+  
+  const playersDiv = document.getElementById('online-players');
+  playersDiv.innerHTML = '';
+  
+  data.players.forEach(player => {
+    const playerDiv = document.createElement('div');
+    playerDiv.className = 'player-info';
+    playerDiv.textContent = `Player ${player.playerIndex + 1} (${player.color})`;
+    if (player.ready) playerDiv.classList.add('ready');
+    playersDiv.appendChild(playerDiv);
+  });
+  
+  document.getElementById('ready-btn').disabled = !data.canStart;
+  showRoomStatus('Connected to room!', 'success');
+}
+
+function updatePlayerReadyState(data) {
+  if (data.allReady) {
+    showRoomStatus('Both players ready! Starting game...', 'success');
+  }
+}
+
+function startOnlineGame() {
+  document.getElementById('online-setup').style.display = 'none';
+  document.getElementById('instructions').style.display = 'block';
+}
+
+function showRoomStatus(message, type) {
+  const statusDiv = document.getElementById('room-status');
+  statusDiv.textContent = message;
+  statusDiv.className = type;
+}
+
+function backToModeSelection() {
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
+  
+  document.getElementById('online-setup').style.display = 'none';
+  document.getElementById('game-mode-select').style.display = 'block';
+  
+  // Reset selections
+  playerSelections = { player1: null, player2: null };
+  currentRoomId = null;
+  myPlayerIndex = null;
+  isHost = false;
+}
+
+// Event listeners for online mode
+document.getElementById('join-room-btn').addEventListener('click', joinRoom);
+document.getElementById('ready-btn').addEventListener('click', () => {
+  socket.emit('player-ready');
+});
+document.getElementById('back-to-mode-btn').addEventListener('click', backToModeSelection);
+
 // Initialize the game when page loads
+// Replace the existing window load listener with:
 window.addEventListener('load', () => {
   createPenguinOptions('player1', 'player1-options');
   createPenguinOptions('player2', 'player2-options');
-  document.getElementById('character-select').style.display = 'block';
+  document.getElementById('game-mode-select').style.display = 'block';
 });
 
 window.addEventListener('resize', resizeCanvas)
