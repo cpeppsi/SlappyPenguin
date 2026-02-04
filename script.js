@@ -273,26 +273,31 @@ document.getElementById('confirm-selection').addEventListener('click', async () 
   if (isOnlineMode) {
     document.getElementById('character-select').style.display = 'none';
     document.getElementById('online-setup').style.display = 'block';
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = 'Continue';
   } else {
     const p1Color = playerSelections.player1;
     const p2Color = playerSelections.player2;
-  }
+  
   // Load iceberg image first
-  try {
-    await loadIcebergImage();
-  } catch (error) {
-    console.error('Failed to load iceberg image:', error);
-    alert('Failed to load iceberg image.');
-    return;
-  }
+    try {
+      await loadIcebergImage();
+    } catch (error) {
+      console.error('Failed to load iceberg image:', error);
+      alert('Failed to load iceberg image.');
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = 'Continue';
+      return;
+    }
   // Set penguin sprites and colors
-  document.getElementById('penguin1').innerHTML = penguinSVG;
-  document.getElementById('penguin2').innerHTML = penguinSVG;
-  document.getElementById('penguin1').style.filter = colorFilters[p1Color];
-  document.getElementById('penguin2').style.filter = colorFilters[p2Color];
+    document.getElementById('penguin1').innerHTML = penguinSVG;
+    document.getElementById('penguin2').innerHTML = penguinSVG;
+    document.getElementById('penguin1').style.filter = colorFilters[p1Color];
+    document.getElementById('penguin2').style.filter = colorFilters[p2Color];
 
-  document.getElementById('character-select').style.display = 'none';
-  document.getElementById('instructions').style.display = 'block';
+    document.getElementById('character-select').style.display = 'none';
+    document.getElementById('instructions').style.display = 'block';
+  }
 });
 
 startBtn.addEventListener('click', startGame);
