@@ -7,7 +7,6 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- <div id="loading">Loading iceberg...</div> -->
 
   <div id="character-select">
     <h2>Select Your Penguin</h2>
@@ -25,14 +24,13 @@
     <button id="confirm-selection" disabled>Continue</button>
   </div>
 
-  <!-- Add this new section -->
 <div id="game-mode-select">
   <h2>Choose Game Mode</h2>
   <button id="local-mode-btn" class="mode-btn">Local 2 Player</button>
   <button id="online-mode-btn" class="mode-btn">Online Multiplayer</button>
 </div>
 
-<div id="online-setup">
+<div id="online-setup" style="display: none;">
   <h2>Online Multiplayer Setup</h2>
   <div class="room-setup">
     <input type="text" id="room-id-input" placeholder="Enter Room ID (e.g., room123)" maxlength="20">
@@ -67,7 +65,6 @@
       <span id="player2-score">Player 2: 0</span>
     </div>
     <canvas id="game-canvas" width="600" height="400"></canvas>
-    <!-- <img id="iceberg" alt="Iceberg Platform" /> -->
     <div id="penguin1" class="penguin"></div>
     <div id="penguin2" class="penguin"></div>
   </div>

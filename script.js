@@ -106,72 +106,6 @@ const colorFilters = {
 const colors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'pink'];
 let playerSelections = { player1: null, player2: null };
 
-// Online multiplayer functions
-function initializeOnlineMode() {
-  // Connect to server
-  socket = io();
-  
-  // Add connection status indicator
-  const statusDiv = document.createElement('div');
-  statusDiv.id = 'connection-status';
-  statusDiv.textContent = 'Connecting...';
-  document.body.appendChild(statusDiv);
-  
-  // Socket event listeners
-  socket.on('connect', () => {
-    document.getElementById('connection-status').textContent = 'Connected';
-    document.getElementById('connection-status').className = 'connected';
-  });
-  
-  socket.on('disconnect', () => {
-    document.getElementById('connection-status').textContent = 'Disconnected';
-    document.getElementById('connection-status').className = 'disconnected';
-  });
-  
-  socket.on('room-state', (data) => {
-    updateRoomState(data);
-  });
-  
-  socket.on('player-ready-update', (data) => {
-    updatePlayerReadyState(data);
-  });
-  
-  socket.on('game-start', () => {
-    startOnlineGame();
-  });
-  
-  socket.on('opponent-input', (data) => {
-    handleOpponentInput(data);
-  });
-  
-  socket.on('opponent-position', (data) => {
-    updateOpponentPosition(data);
-  });
-  
-  socket.on('score-sync', (data) => {
-    scores = data.scores;
-    updateScore();
-  });
-  
-  socket.on('game-over-sync', (data) => {
-    gameRunning = false;
-    modal.querySelector('p').textContent = data.message;
-    modal.style.display = 'block';
-  });
-  
-  socket.on('game-reset', () => {
-    resetGame();
-  });
-  
-  socket.on('player-left', (data) => {
-    alert('Your opponent left the game');
-    backToModeSelection();
-  });
-  
-  socket.on('join-error', (data) => {
-    showRoomStatus(data.message, 'error');
-  });
-}
 
 function loadIcebergImage() {
   return new Promise((resolve, reject) => {
@@ -366,6 +300,9 @@ playAgainBtn.addEventListener('click', () => {
   resetGame();
 });
 characterSelectBtn.addEventListener('click', () => {
+  if (isOnlineMode) {
+    backToModeSelection();
+  } else {
   playerSelections = { player1: null, player2: null };
   document.getElementById('confirm-selection').disabled = true;
   createPenguinOptions('player1', 'player1-options');
@@ -376,11 +313,10 @@ characterSelectBtn.addEventListener('click', () => {
   scores = [0, 0];
   updateScore();
   gameRunning = false;
+  }
 });
 
 function startGame() {
-    // document.getElementById('instructions').style.display = 'none';
-    // document.getElementById('game-container').style.display = 'block';
 
   if (gameRunning) return;
   gameRunning = true;
@@ -568,7 +504,7 @@ function updateGame() {
         penguin.element.style.top = `${penguin.y}px`;
 
         // Sync position in online mode
-        if (isOnlineMode && socket) {
+        if (isOnlineMode && socket && socket.connected) {
           const now = Date.now();
           if (now - lastPositionSync > POSITION_SYNC_INTERVAL) {
             socket.emit('position-sync', {
@@ -604,11 +540,20 @@ function handlePenguinFall(penguin) {
 
   if (scores[otherPenguinIndex] >= winScore) {
     gameRunning = false;
-    modal.querySelector('p').textContent = `Player ${otherPenguinIndex + 1} wins the game!`;
+    const message = `Player ${otherPenguinIndex + 1} wins the game!`;
+    modal.querySelector('p').textContent = message;
     modal.style.display = 'block';
+
+    if (isOnlineMode && socket && socket.connected) {
+      socket.emit('game-over', { message: message, scores: scores });
+    }
   } else {
-    alert(`Penguin ${fallenPenguinIndex + 1} fell off the iceberg!`);
-    resetPositions();
+    if (isOnlineMode && socket && socket.connected && myPlayerIndex === otherPenguinIndex) {
+      socket.emit('score-update', { scores: scores });
+    }
+    setTimeout(() => {
+      resetPositions();
+    }, 500);
   }
 }
 
@@ -829,6 +774,7 @@ document.getElementById('online-mode-btn').addEventListener('click', () => {
   initializeOnlineMode();
   document.getElementById('game-mode-select').style.display = 'none';
   document.getElementById('character-select').style.display = 'block';
+  document.getElementById('online-setup').style.display = 'none'; // Hide online setup initially
   
   // Hide player 2 selection for online mode
   document.querySelector('.player-select:nth-child(3)').style.display = 'none';
@@ -851,7 +797,6 @@ function initializeOnlineMode() {
   
   const statusDiv = document.createElement('div');
   statusDiv.id = 'connection-status';
-  statusDiv.textContent = 'Connecting...';
   document.body.appendChild(statusDiv);
   
   socket.on('connect', () => {
@@ -1036,6 +981,7 @@ function backToModeSelection() {
   document.getElementById('online-setup').style.display = 'none';
   document.getElementById('game-container').style.display = 'none';
   document.getElementById('instructions').style.display = 'none';
+  document.getElementById('character-select').style.display = 'none'; // Hide character select
   document.getElementById('game-mode-select').style.display = 'block';
   
   playerSelections = { player1: null, player2: null };
@@ -1047,6 +993,11 @@ function backToModeSelection() {
   
   document.getElementById('waiting-area').style.display = 'none';
   document.getElementById('room-status').textContent = '';
+  
+  // Reset character selection UI
+  createPenguinOptions('player1', 'player1-options');
+  createPenguinOptions('player2', 'player2-options');
+  document.getElementById('confirm-selection').disabled = true;
 }
 
 
