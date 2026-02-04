@@ -31,6 +31,9 @@ let currentRoomId = null;
 let myPlayerIndex = null;
 let isHost = false;
 
+let lastPositionSync = 0;
+const POSITION_SYNC_INTERVAL = 50;
+
 // Penguin SVG template
 const penguinSVG = `
   <svg width="50" height="50" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
@@ -303,9 +306,15 @@ function handleSelection(player, color) {
   playerSelections[player] = color;
   updateSelectionStyles();
 
-  const bothSelected = playerSelections.player1 && playerSelections.player2;
-  const different = playerSelections.player1 !== playerSelections.player2;
-  document.getElementById('confirm-selection').disabled = !(bothSelected && different);
+  if (isOnlineMode) {
+    // Online mode - only need player1 selection
+    document.getElementById('confirm-selection').disabled = !playerSelections.player1;
+  } else {
+    // Local mode - need both selections to be different
+    const bothSelected = playerSelections.player1 && playerSelections.player2;
+    const different = playerSelections.player1 !== playerSelections.player2;
+    document.getElementById('confirm-selection').disabled = !(bothSelected && different);
+  }
 }
 
 function updateSelectionStyles() {
@@ -327,18 +336,21 @@ function updateSelectionStyles() {
 }
 
 document.getElementById('confirm-selection').addEventListener('click', async () => {
-  const p1Color = playerSelections.player1;
-  const p2Color = playerSelections.player2;
-
+  if (isOnlineMode) {
+    document.getElementById('character-select').style.display = 'none';
+    document.getElementById('online-setup').style.display = 'block';
+  } else {
+    const p1Color = playerSelections.player1;
+    const p2Color = playerSelections.player2;
+  }
   // Load iceberg image first
   try {
     await loadIcebergImage();
   } catch (error) {
     console.error('Failed to load iceberg image:', error);
-    alert('Failed to load iceberg image. Please make sure iceberg1.svg is available.');
+    alert('Failed to load iceberg image.');
     return;
   }
-
   // Set penguin sprites and colors
   document.getElementById('penguin1').innerHTML = penguinSVG;
   document.getElementById('penguin2').innerHTML = penguinSVG;
@@ -395,13 +407,14 @@ function handleKeyUp(e) {
 function handleKey(event, isKeyDown) {
   if (!penguins.length) return;
   
-  // Determine which penguin to control based on mode
   let controlledPenguinIndex = 0;
   if (isOnlineMode) {
     controlledPenguinIndex = myPlayerIndex;
+    if (controlledPenguinIndex === null || controlledPenguinIndex === undefined) {
+      return; // Don't process input if we don't know our player index yet
+    }
   }
   
-  // Movement keys for local mode (both players) or online mode (my player only)
   if (!isOnlineMode) {
     // Local mode - control both penguins
     switch (event.code) {
@@ -438,8 +451,8 @@ function handleKey(event, isKeyDown) {
         break;
     }
     
-    // Send input to server
-    if (socket) {
+    // Send input to server immediately
+    if (socket && socket.connected) {
       socket.emit('game-input', {
         type: 'movement',
         keys: {
@@ -455,7 +468,6 @@ function handleKey(event, isKeyDown) {
   // Slap keys (only on key down)
   if (isKeyDown) {
     if (!isOnlineMode) {
-      // Local mode
       switch (event.code) {
         case 'Space':
           event.preventDefault();
@@ -467,13 +479,12 @@ function handleKey(event, isKeyDown) {
           break;
       }
     } else {
-      // Online mode
       switch (event.code) {
         case 'Space':
         case 'Enter':
           event.preventDefault();
           performSlap(controlledPenguinIndex);
-          if (socket) {
+          if (socket && socket.connected) {
             socket.emit('game-input', {
               type: 'slap',
               playerIndex: controlledPenguinIndex
@@ -525,40 +536,58 @@ function performSlap(playerIndex) {
 function updateGame() {
   if (!gameRunning) return;
 
-  const gameContainer = document.getElementById('game-container');
-  const rect = gameContainer.getBoundingClientRect();
+  penguins.forEach((penguin, idx) => {
+    // In online mode, only apply physics to my penguin
+    // Opponent position comes from server updates
+    const isMyPenguin = !isOnlineMode || idx === myPlayerIndex;
+    
+    if (isMyPenguin) {
+      // Apply movement forces
+      if (penguin.up) penguin.vy -= speed;
+      if (penguin.down) penguin.vy += speed;
+      if (penguin.left) penguin.vx -= speed;
+      if (penguin.right) penguin.vx += speed;
 
-  penguins.forEach(penguin => {
-    // Movement
-    if (penguin.up) penguin.vy -= speed;
-    if (penguin.down) penguin.vy += speed;
-    if (penguin.left) penguin.vx -= speed;
-    if (penguin.right) penguin.vx += speed;
+      // Apply friction
+      penguin.vx *= friction;
+      penguin.vy *= friction;
 
-    // Apply friction
-    penguin.vx *= friction;
-    penguin.vy *= friction;
+      // Calculate new position
+      const newX = penguin.x + penguin.vx;
+      const newY = penguin.y + penguin.vy;
 
-    // Calculate new position
-    const newX = penguin.x + penguin.vx;
-    const newY = penguin.y + penguin.vy;
+      const penguinWidth = penguin.element.offsetWidth;
+      const penguinHeight = penguin.element.offsetHeight;
 
-    // Check if new position would be on the iceberg
-    const penguinWidth = penguin.element.offsetWidth;
-    const penguinHeight = penguin.element.offsetHeight;
+      if (isOnIceberg(newX, newY, penguinWidth, penguinHeight)) {
+        penguin.x = newX;
+        penguin.y = newY;
+        
+        // Update visual position
+        penguin.element.style.left = `${penguin.x}px`;
+        penguin.element.style.top = `${penguin.y}px`;
 
-    if (isOnIceberg(newX, newY, penguinWidth, penguinHeight)) {
-      // Update position if still on iceberg
-      penguin.x = newX;
-      penguin.y = newY;
-      
-      // Update visual position
+        // Sync position in online mode
+        if (isOnlineMode && socket) {
+          const now = Date.now();
+          if (now - lastPositionSync > POSITION_SYNC_INTERVAL) {
+            socket.emit('position-sync', {
+              x: penguin.x,
+              y: penguin.y,
+              vx: penguin.vx,
+              vy: penguin.vy
+            });
+            lastPositionSync = now;
+          }
+        }
+      } else {
+        handlePenguinFall(penguin);
+        return;
+      }
+    } else {
+      // For opponent penguin, just update visual position from synced data
       penguin.element.style.left = `${penguin.x}px`;
       penguin.element.style.top = `${penguin.y}px`;
-    } else {
-      // Penguin fell off the iceberg
-      handlePenguinFall(penguin);
-      return;
     }
   });
 
@@ -784,17 +813,249 @@ function backToModeSelection() {
 }
 
 // Event listeners for online mode
+// Mode selection
+document.getElementById('local-mode-btn').addEventListener('click', () => {
+  isOnlineMode = false;
+  document.getElementById('game-mode-select').style.display = 'none';
+  document.getElementById('character-select').style.display = 'block';
+  
+  // Show both player selections for local mode
+  document.querySelector('.player-select:nth-child(2)').style.display = 'block';
+  document.querySelector('.player-select:nth-child(3)').style.display = 'block';
+});
+
+document.getElementById('online-mode-btn').addEventListener('click', () => {
+  isOnlineMode = true;
+  initializeOnlineMode();
+  document.getElementById('game-mode-select').style.display = 'none';
+  document.getElementById('character-select').style.display = 'block';
+  
+  // Hide player 2 selection for online mode
+  document.querySelector('.player-select:nth-child(3)').style.display = 'none';
+});
+
 document.getElementById('join-room-btn').addEventListener('click', joinRoom);
+
 document.getElementById('ready-btn').addEventListener('click', () => {
   socket.emit('player-ready');
+  document.getElementById('ready-btn').textContent = 'Waiting for opponent...';
+  document.getElementById('ready-btn').disabled = true;
 });
+
 document.getElementById('back-to-mode-btn').addEventListener('click', backToModeSelection);
+
+// ========== ONLINE MULTIPLAYER FUNCTIONS ==========
+
+function initializeOnlineMode() {
+  socket = io();
+  
+  const statusDiv = document.createElement('div');
+  statusDiv.id = 'connection-status';
+  statusDiv.textContent = 'Connecting...';
+  document.body.appendChild(statusDiv);
+  
+  socket.on('connect', () => {
+    document.getElementById('connection-status').textContent = 'Connected';
+    document.getElementById('connection-status').className = 'connected';
+  });
+  
+  socket.on('disconnect', () => {
+    document.getElementById('connection-status').textContent = 'Disconnected';
+    document.getElementById('connection-status').className = 'disconnected';
+  });
+  
+  socket.on('room-state', (data) => {
+    updateRoomState(data);
+  });
+  
+  socket.on('player-ready-update', (data) => {
+    updatePlayerReadyState(data);
+  });
+  
+  socket.on('game-start', () => {
+    startOnlineGame();
+  });
+  
+  socket.on('opponent-input', (data) => {
+    handleOpponentInput(data);
+  });
+  
+  socket.on('opponent-position', (data) => {
+    updateOpponentPosition(data);
+  });
+  
+  socket.on('score-sync', (data) => {
+    scores = data.scores;
+    updateScore();
+  });
+  
+  socket.on('game-over-sync', (data) => {
+    gameRunning = false;
+    modal.querySelector('p').textContent = data.message;
+    modal.style.display = 'block';
+  });
+  
+  socket.on('game-reset', () => {
+    resetGame();
+  });
+  
+  socket.on('player-left', () => {
+    alert('Your opponent left the game');
+    backToModeSelection();
+  });
+  
+  socket.on('join-error', (data) => {
+    showRoomStatus(data.message, 'error');
+  });
+}
+
+function joinRoom() {
+  const roomId = document.getElementById('room-id-input').value.trim();
+  if (!roomId) {
+    showRoomStatus('Please enter a room ID', 'error');
+    return;
+  }
+  
+  if (!playerSelections.player1) {
+    showRoomStatus('Please select a penguin color first', 'error');
+    return;
+  }
+  
+  currentRoomId = roomId;
+  socket.emit('join-room', {
+    roomId: roomId,
+    playerData: { color: playerSelections.player1 }
+  });
+  
+  document.getElementById('current-room-id').textContent = roomId;
+  document.getElementById('waiting-area').style.display = 'block';
+}
+
+function updateRoomState(data) {
+  myPlayerIndex = data.players.find(p => p.id === socket.id)?.playerIndex;
+  isHost = myPlayerIndex === 0;
+  
+  // Get opponent color
+  const opponentPlayer = data.players.find(p => p.id !== socket.id);
+  if (opponentPlayer) {
+    playerSelections.player2 = opponentPlayer.color;
+  }
+  
+  const playersDiv = document.getElementById('online-players');
+  playersDiv.innerHTML = '';
+  
+  data.players.forEach(player => {
+    const playerDiv = document.createElement('div');
+    playerDiv.className = 'player-info';
+    const isMe = player.id === socket.id;
+    playerDiv.textContent = `Player ${player.playerIndex + 1} (${player.color})${isMe ? ' - YOU' : ''}`;
+    if (player.ready) playerDiv.classList.add('ready');
+    playersDiv.appendChild(playerDiv);
+  });
+  
+  document.getElementById('ready-btn').disabled = !data.canStart;
+  showRoomStatus('Connected to room!', 'success');
+}
+
+function updatePlayerReadyState(data) {
+  if (data.allReady) {
+    showRoomStatus('Both players ready! Starting game...', 'success');
+  }
+}
+
+async function startOnlineGame() {
+  try {
+    await loadIcebergImage();
+  } catch (error) {
+    console.error('Failed to load iceberg image:', error);
+    alert('Failed to load iceberg image.');
+    return;
+  }
+
+  const p1Color = playerSelections.player1;
+  const p2Color = playerSelections.player2;
+
+  document.getElementById('penguin1').innerHTML = penguinSVG;
+  document.getElementById('penguin2').innerHTML = penguinSVG;
+  document.getElementById('penguin1').style.filter = colorFilters[p1Color];
+  document.getElementById('penguin2').style.filter = colorFilters[p2Color];
+
+  document.getElementById('online-setup').style.display = 'none';
+  document.getElementById('instructions').style.display = 'block';
+}
+
+function handleOpponentInput(data) {
+  const opponentIndex = data.playerIndex;
+  const opponent = penguins[opponentIndex];
+  
+  if (!opponent) return;
+
+  if (data.inputData.type === 'movement') {
+    opponent.up = data.inputData.keys.up;
+    opponent.down = data.inputData.keys.down;
+    opponent.left = data.inputData.keys.left;
+    opponent.right = data.inputData.keys.right;
+    
+    // Apply movement immediately for responsiveness
+    if (opponent.up) opponent.vy -= speed;
+    if (opponent.down) opponent.vy += speed;
+    if (opponent.left) opponent.vx -= speed;
+    if (opponent.right) opponent.vx += speed;
+  } else if (data.inputData.type === 'slap') {
+    performSlap(opponentIndex);
+  }
+}
+
+function updateOpponentPosition(data) {
+  const opponentIndex = data.playerIndex;
+  const opponent = penguins[opponentIndex];
+  
+  if (!opponent) return;
+
+  opponent.x = data.position.x;
+  opponent.y = data.position.y;
+  opponent.vx = data.position.vx || 0;
+  opponent.vy = data.position.vy || 0;
+}
+
+function showRoomStatus(message, type) {
+  const statusDiv = document.getElementById('room-status');
+  statusDiv.textContent = message;
+  statusDiv.className = type;
+}
+
+function backToModeSelection() {
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
+  
+  const statusDiv = document.getElementById('connection-status');
+  if (statusDiv) statusDiv.remove();
+  
+  document.getElementById('online-setup').style.display = 'none';
+  document.getElementById('game-container').style.display = 'none';
+  document.getElementById('instructions').style.display = 'none';
+  document.getElementById('game-mode-select').style.display = 'block';
+  
+  playerSelections = { player1: null, player2: null };
+  currentRoomId = null;
+  myPlayerIndex = null;
+  isHost = false;
+  isOnlineMode = false;
+  gameRunning = false;
+  
+  document.getElementById('waiting-area').style.display = 'none';
+  document.getElementById('room-status').textContent = '';
+}
+
 
 // Initialize the game when page loads
 // Replace the existing window load listener with:
 window.addEventListener('load', () => {
   createPenguinOptions('player1', 'player1-options');
   createPenguinOptions('player2', 'player2-options');
+  document.getElementById('character-select').style.display = 'none';
   document.getElementById('game-mode-select').style.display = 'block';
 });
 
